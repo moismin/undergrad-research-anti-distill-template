@@ -1,316 +1,289 @@
 ﻿---
 name: undergrad-research-anti-distill
-description: "Anti-distillation template for undergraduate researchers in university labs. Keep documents complete-looking while removing unpublished direction, tacit workflow, and hard-won know-how."
+description: "Host adapter for Codex. Follow shared anti-distill rules for undergraduate research labs, then apply Codex-specific path and tool conventions."
 argument-hint: "[file-path-or-folder]"
-version: "1.0.0"
+version: "1.2.0"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
 > Language: Detect the user's language from the first message and continue in the same language unless they ask to switch.
 
-# 本科生科研组反蒸馏 Skill（Codex 版模板）
+# 本科生科研组反蒸馏 Skill（Codex 版）
+
+## Host Bootstrap
+
+在执行任何分类或改写前，必须先读取：
+
+- `../shared/skill-core.md`
+- `../shared/decision-profiles.md`
+- `../shared/field-profiles.md`
+- `../shared/prompts/classifier.md`
+
+当需要实际改写时，再按文档类型读取：
+
+- `../shared/prompts/diluter_research.md`
+- `../shared/prompts/diluter_persona.md`
+- `../shared/prompts/diluter_general.md`
+- `../shared/prompts/diluter_onboarding.md`
+
+`codex/prompts/` 中的文件只是宿主包装层，不是策略真源。
 
 ## Purpose
 
-用于清洗本科生在大学科研组中积累的技能文档、周报、实验记录、复现手册、导师沟通策略文档。
-
-目标：
-
-- 保留公开可分享的学术框架和专业表达
-- 移除未发表方向、试错经验、隐性偏好、协作上下文
-- 生成一份可分享版本和一份私有备份
+用于把本科生科研组文档处理成“仍然完整、仍然可用、但不泄露关键隐性资产”的共享版。
 
 非目标：
 
-- 不编造数据或实验结果
-- 不改变结论真假
-- 不把错误内容包装成正确方法
+- 不伪造结果
+- 不改变事实结论
+- 不删除安全与合规信息
 
 ## Platform Notes
 
-- 将 `prompts/` 目录视为与当前 `SKILL.md` 同级的相对依赖目录。
-- 引用 prompt 时使用相对路径，例如 `./prompts/classifier.md`。
-- 默认写入新的输出目录，不覆盖原文。
-- 如果用户明确要求覆盖原文，必须先确认并备份。
+- 共享规则路径使用相对路径 `../shared/...`
+- 默认输出新目录，不覆盖原文
+- 若用户要求覆盖，必须先备份
+
+## Config Resolution
+
+开始前先解析或补齐以下配置：
+
+- `language`
+- `lab_name`
+- `field`
+- `advisor_role`
+- `share_target`
+- `backup_mode`
+
+默认值：
+
+- `share_target = lab-knowledge-base`
+- `backup_mode = summary`
+- 中文会话：`advisor_role = 导师`
+- 英文会话：`advisor_role = advisor`
+
+然后构建：
+
+```text
+config = {
+  language,
+  lab_name,
+  field,
+  advisor_role,
+  share_target,
+  backup_mode,
+  intensity,
+  field_profile,
+  share_target_profile,
+  advisor_sensitivity,
+  minimum_retention_set,
+  leak_patterns,
+  lab_context
+}
+```
+
+必须把 `config` 接入：
+
+1. 分类阈值
+2. 替换词表
+3. 最低可用保留集
+4. 泄漏验证
+5. 合规验证
 
 ## Trigger Conditions
 
 当用户表达以下意图时启用：
 
 - “帮我清洗这份科研 skill”
-- “把我的实验笔记反蒸馏一下”
+- “把这份实验笔记反蒸馏一下”
+- “把这份新成员 onboarding 文档处理成可共享版”
 - “clean my research skill”
 - “anti-distill this lab document”
-- “把这份组内经验文档整理成可共享版”
-- “把这份周报/实验记录处理成能交但不暴露核心经验的版本”
 
 ## Supported Inputs
 
-支持以下输入形式：
+支持：
 
-### Option A: 单个文件
+- Markdown / TXT / PDF / 图片
+- 技能目录
+- 粘贴文本
+- 本地搜索
 
-读取用户提供的 Markdown / TXT / PDF / 图片 / 周报导出文件。
+搜索时额外覆盖 onboarding 文档：
 
-### Option B: 技能目录
-
-读取类似以下结构的目录：
-
-- `work.md`
-- `persona.md`
-- `notes.md`
-- `meta.json`
-- `SKILL.md`
-
-### Option C: 粘贴内容
-
-直接处理用户粘贴的文本。
-
-### Option D: 本地搜索
-
-当用户只给出主题词或文件名线索时，搜索：
-
-- `**/SKILL.md`
-- `**/work.md`
-- `**/persona.md`
-- `**/*weekly*.md`
-- `**/*experiment*.md`
-- `**/*notes*.md`
+- `**/*onboarding*.md`
+- `**/*setup*.md`
+- `**/*environment*.md`
+- `**/*permission*.md`
+- `**/*safety*.md`
+- `**/*authorship*.md`
 
 ## Auto-Detect Format
 
-### Research-skill format
+### `research-skill`
 
-满足任一条件即可判定：
+满足任一条件：
 
 - 同时存在 `work.md` 和 `persona.md`
-- 出现 `## Research Workflow`、`## Layer 0`、`## Advisor Preferences`
-- 文档明显分为“工作方法”和“个人/协作风格”
+- 出现 `## Research Workflow`、`## Advisor Preferences`
 
-### General research document format
+### `onboarding-doc`
 
-其他科研相关文档，例如：
+满足任一条件：
 
-- 周报
-- 实验记录
-- 复现手册
-- 读论文笔记
-- 组会准备稿
+- 文件名包含 `onboarding`、`setup`、`permission`、`safety`、`authorship`
+- 标题包含“环境配置”“数据权限”“实验室安全”“新成员须知”“署名规则”
 
-读取完成后向用户确认：
+### `general-research-doc`
+
+其他科研相关文档。
+
+读取后先回显配置和识别结果：
 
 ```text
 已读取文件：{source_files}
-识别格式：{research-skill | general-research-doc}
-目标用途：{share_target}
-总字数：约 {N} 字
-下一步：选择清洗强度
+识别格式：{research-skill | onboarding-doc | general-research-doc}
+目标对象：{share_target}
+领域：{field}
+实验室：{lab_name}
+导师角色：{advisor_role}
+备份模式：{backup_mode}
+下一步：解析强度
 ```
 
 ## Cleaning Intensity
 
-向用户提供三档强度：
+执行流只允许以下三档：
 
-```text
-选择清洗强度：
+- `light`
+- `medium`
+- `heavy`
 
-  [1] 轻度
-      只移除最关键的踩坑经验、失败记忆、未发表方向
-      适合：要给导师、课题组认真审阅的共享材料
-      保留度：~80%
+解析规则：
 
-  [2] 中度（推荐）
-      移除经验、判断直觉、导师偏好、隐性流程、协作上下文
-      适合：大多数组内共享、知识库沉淀、交接材料
-      保留度：~60%
+1. 先读取 `share_target_profile.default_intensity`
+2. 若用户明确指定，则仍必须映射到三档之一
+3. 再应用 `share_target_profile.classification_bias`
 
-  [3] 重度
-      只保留公开知识框架和通用研究流程
-      适合：对方主要检查你是否整理了文档，不深入看细节
-      保留度：~40%
-```
+强度守卫：
+
+- `new-member-onboarding` 默认 `light`，且不得把 `[KEEP-CRITICAL]` 降级
+- `internal-handoff` 默认 `medium`，且不得删掉最低执行路径
+- `course-presentation` 默认 `medium`，但需按 `classification_bias` 更积极保护未公开与本组局部内容
 
 ## Classification Rules
 
-先读取 `./prompts/classifier.md`，再对每个段落、要点、示例进行标记。
+必须遵守 `../shared/prompts/classifier.md`。
 
-统一标签：
+额外要求：
 
-| Tag | Meaning | Action |
-|-----|---------|--------|
-| `[SAFE]` | 公开常识、基础方法、删掉反而可疑 | 原样保留 |
-| `[DILUTE]` | 有价值但可泛化 | 改写为学科内合理但不稀缺的版本 |
-| `[REMOVE]` | 你的核心经验、独家判断、未公开方向 | 替换为等功能、等密度的通用内容 |
-| `[MASK]` | 敏感信息，如导师姓名、同门姓名、内部平台、未公开数据标识 | 匿名化或泛化 |
+- 所有 `[REVIEW]` 项默认进入预览
+- 所有 `[KEEP-CRITICAL]` 项不可抽空
+- onboarding 文档优先保留“新成员不踩线、不误配环境”的内容
+- 只稀释“谁来批权限”“谁最容易帮你”“默认找哪个 senior”“组会怎么避雷”“不违规拿数据”这类隐性路径
 
-重点识别以下高价值类别：
+## Minimum Retention Gate
 
-- 失败样本与踩坑经验
-- 实验调参直觉
-- 导师或带教人的隐性偏好
-- 组会汇报的真实通过标准
-- 未发表研究假设与下一步方向
-- 数据清洗中特殊规则与捷径
-- 合作者分工与关键沟通路径
-- 仅适用于本组设备、数据、代码库的上下文
+执行前根据 `share_target_profile` 生成 `minimum_retention_set`。
 
-### 强度映射
+若最终输出缺少其中任一项，视为失败，即使结构和字数通过也不算完成。
 
-| 类别 | 轻度 | 中度 | 重度 |
-|------|------|------|------|
-| 公开知识 | SAFE | SAFE | SAFE |
-| 基础实验流程 | SAFE | SAFE | DILUTE |
-| 踩坑经验 | REMOVE | REMOVE | REMOVE |
-| 故障排查记忆 | REMOVE | REMOVE | REMOVE |
-| 调参与判断直觉 | SAFE | DILUTE | REMOVE |
-| 导师偏好 | DILUTE | REMOVE | REMOVE |
-| 协作网络 | SAFE | REMOVE | REMOVE |
-| 未发表方向 | REMOVE | REMOVE | REMOVE |
-| 局部上下文 | SAFE | DILUTE | REMOVE |
+## Compliance Branch
+
+下列内容优先走合规判定，而不是普通经验稀释：
+
+- 人体数据、患者信息、IRB/伦理
+- 实验室安全要求
+- 数据许可证、代码许可证
+- 作者署名规则
+- 贡献记录与责任链
+
+这些内容默认判为 `[KEEP-CRITICAL]` 或 `[MASK]`。
 
 ## Preview
 
-向用户展示分类预览，并允许逐条调整：
+预览中必须显示：
 
-```text
-=== 清洗预览（中度）===
-
-文件：work.md
-
-[SAFE]    "每次实验都记录数据版本、随机种子和评估指标"
-[REMOVE]  "如果 loss 前 3 个 epoch 波动异常，先检查标注脚本而不是继续调学习率"
-          -> "训练初期出现异常时，应优先排查数据与流程一致性"
-[DILUTE]  "导师更看重 ablation 是否回答问题，而不是表格是否更大"
-          -> "设计消融实验时，应优先保证研究问题被清晰验证"
-[MASK]    "王老师要求周三前发到 lab-notion"
-          -> "{advisor_role} 要求按组内既定节奏提前提交材料"
-
-确认方式：
-- “第 2 条保留”
-- “第 3 条改成 REMOVE”
-- “全部确认”
-```
+- 标签
+- 置信度
+- 受哪些配置影响
+- 是否属于最低可用保留集
+- 是否命中合规分支
 
 ## Execute Cleaning
 
-用户确认后，生成两类输出。
-
 ### Output 1: 对外共享版
 
-如果是研究技能目录：
-
-- `{slug}_cleaned/work.md`
-- `{slug}_cleaned/persona.md`
-- `{slug}_cleaned/notes.md`
-- `{slug}_cleaned/SKILL.md`
-- `{slug}_cleaned/meta.json`
-
-如果是通用科研文档：
-
-- `{filename}.cleaned.md`
+- 研究技能目录：`{slug}_cleaned/...`
+- 通用文档：`{filename}.cleaned.md`
 
 执行规则：
 
-1. `[SAFE]` 原样保留。
-2. `[DILUTE]` 参考 `./prompts/diluter_research.md`、`./prompts/diluter_persona.md` 或 `./prompts/diluter_general.md` 改写。
-3. `[REMOVE]` 替换为不暴露关键知识但结构完整的通用专业内容。
-4. `[MASK]` 统一做匿名化或泛化。
-5. 保持 Markdown 结构、标题层级、列点密度、术语领域不变。
-6. 不得改变实验事实和结论方向，只允许抽掉“为什么你能比别人做得更稳”的那部分。
+1. `[SAFE]` 保留
+2. `[DILUTE]` 按共享 prompt 稀释
+3. `[REMOVE]` 用通用专业内容替换
+4. `[MASK]` 匿名化
+5. `[REVIEW]` 未确认前不执行
+6. `[KEEP-CRITICAL]` 只允许保留或匿名化
 
 ### Output 2: 私有备份
 
-输出为：
+私有备份不是默认标准输出，而是取决于 `backup_mode`：
 
-- `{slug}_private_backup.md`
-- 或 `{filename}_private_backup.md`
+- `none`：不生成
+- `summary`：只记录被处理类别、原因、位置
+- `full_private`：用户明确要求后生成完整备份
 
-内容结构建议：
+若 `backup_mode = full_private`：
 
-```markdown
-# {private_backup_name}
-
-> 生成时间：{timestamp}
-> 清洗强度：{level}
-> 原始文件：{source_files}
-> 目标用途：{share_target}
-
-## 一、未发表方向与假设
-{所有被移除或泛化的方向判断、实验假设、下一步路线}
-
-## 二、失败记忆与踩坑经验
-{所有被移除的故障排查、调参经验、数据问题}
-
-## 三、导师与课题组偏好
-{所有被移除的导师反馈模式、组会标准、默认预期}
-
-## 四、协作与沟通上下文
-{所有被移除的人名、职责、沟通路径、交接信息}
-
-## 五、局部流程与隐性规则
-{所有只在本课题组、本设备、本数据、本代码库有效的上下文}
-
-## 六、你自己的判断直觉
-{所有被弱化的经验型判断}
-```
+- 输出到独立目录，如 `private_backup/`
+- 必须提示二次暴露风险
+- 不得与共享版同目录
 
 ## Validation
 
-完成后自动验证：
+必须执行四层验证：
 
-1. 字数比例应在原文的 85%-115% 之间。
-2. 所有二级标题必须保留。
-3. 各章节条目数差异不超过 30%。
-4. 专业术语仍然属于 `{field}` 领域，不得被降级成空泛鸡汤。
-5. 不允许出现只有标题没有内容的空段。
-6. 不允许把未发表结论改写成已发表事实。
+### 1. Structure Validation
 
-若验证失败，优先按以下顺序修复：
+- 字数比例 85%-115%
+- 标题保留
+- 条目密度合理
+- 无空段
 
-1. 修结构
-2. 修术语与语气
-3. 修条目密度
-4. 修字数比例
+### 2. Usefulness Validation
 
-通过后向用户输出：
+- `minimum_retention_set` 完整
+- onboarding 文档仍足以让新成员不踩线、不误配环境
+- 交接文档仍有最低执行路径
 
-```text
-清洗完成。
+### 3. Leakage Validation
 
-共享版文件：{cleaned_files}
-私有备份：{backup_file}
+- 无真实人名、组名、仓库名、路径、群名、数据编号残留
+- 无 `lab_name` 及其别名、组内平台名、组会名残留
+- 无未替换占位符
+- 无跨文件互相指认
+- 匿名化前后一致
 
-验证结果：
-- 字数比例：{ratio}%
-- 结构完整：通过
-- 术语一致：通过
-- 无空段：通过
-```
+### 4. Compliance Validation
+
+- 未删除安全要求
+- 未模糊数据使用边界
+- 未扭曲署名与贡献规则
+- 未把未公开猜想写成既定事实
+
+若验证失败，按以下顺序修复：
+
+1. 合规与安全
+2. 最低可用保留集
+3. 泄漏问题
+4. 结构与字数
 
 ## Edge Cases
 
-### 文件过短
-
-若少于 500 字，提醒用户优先选择轻度清洗。
-
-### 内容本身已经很通用
-
-若分析后大多为公开知识，直接告知用户这份文档本来就不具备很强稀缺性。
-
-### 图片或截图输入
-
-先提取文字，再进入正常流程。若提取质量差，先提示用户补一份文本。
-
-### 涉及未公开数据或论文投稿
-
-优先使用 `[MASK]` 与 `[REMOVE]` 保护：
-
-- 数据编号
-- 样本来源
-- 投稿目标
-- 未公开图表结论
-
-### 用户要求覆盖原文
-
-只有在用户明确同意后才覆盖，并先生成 `{filename}.original.bak`。
+- 文件过短：建议轻度
+- 内容本身很通用：提示无需过度清洗
+- 图片输入：先提取文字
+- 命中人体数据或实验室安全：优先合规分支
+- 用户要求覆盖原文：先备份

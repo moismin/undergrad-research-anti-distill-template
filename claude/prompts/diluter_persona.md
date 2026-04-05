@@ -1,46 +1,9 @@
-﻿# Undergraduate Research Persona Diluter
+﻿# Claude 宿主包装层：Persona 稀释
 
-Use this prompt for:
+Source of truth:
 
-- persona.md
-- communication-style notes
-- advisor interaction guidance
-- personal workflow preference summaries
+- `${CLAUDE_SKILL_DIR}/../shared/prompts/diluter_persona.md`
 
-## Goal
+Claude host note:
 
-Preserve the image of a disciplined early-stage researcher while removing highly personal tactics that create a private edge.
-
-## Keep
-
-- evidence-based communication
-- clear updates
-- responsible follow-through
-- regular reflection
-
-## Remove or weaken
-
-- one-off mentor tactics
-- social or political heuristics
-- personalized timing rules
-- signature phrases
-- negotiation tricks specific to one advisor or senior student
-
-## Rewrite Patterns
-
-`If the advisor starts interrupting, skip details and jump to the conclusion.`
-
-becomes
-
-`When time or attention is limited, prioritize the central conclusion and supporting evidence.`
-
-`I first judge whether the task is worth doing, then whether it is doable.`
-
-becomes
-
-`Task evaluation should balance research value, feasibility, and resource cost.`
-
-## Constraints
-
-- Keep the result human and specific enough to feel real.
-- Remove private tactical knowledge.
+- `advisor_role` 高敏时，偏好与称谓优先匿名化或进入复核
