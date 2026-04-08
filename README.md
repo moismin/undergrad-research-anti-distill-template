@@ -161,3 +161,8 @@
 2. 先配置参数，再运行分类与稀释流程。
 3. 对 `onboarding-doc` 采用更保守的抽离策略。
 4. 保留 `shared/` 作为单一规则源，不要直接让 `codex/` 与 `claude/` 漂移。
+
+## License
+
+本模板以 MIT License 发布。完整许可证文本见根目录的 LICENSE 文件。
+
